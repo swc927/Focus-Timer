@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Focus Timer by SWC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+  <div class="bg-orb orb-3"></div>
+
+  <main class="shell">
+    <header class="topbar">
+      <h1>Focus Timer <span>by SWC</span></h1>
+      <div class="controls-right">
+        <button id="openSettings" class="btn ghost" aria-label="Open settings">⚙</button>
+      </div>
+    </header>
+
+    <section class="modes" role="tablist" aria-label="Timer modes">
+      <button class="chip active" data-mode="focus">Focus</button>
+      <button class="chip" data-mode="short">Short break</button>
+      <button class="chip" data-mode="long">Long break</button>
+    </section>
+
+    <section class="timer-card">
+      <div class="ring" aria-hidden="true">
+        <div class="ring-inner">
+          <div class="time" aria-live="polite">
+            <span id="minutes">25</span><span class="sep">:</span><span id="seconds">00</span>
+          </div>
+          <div class="label" id="modeLabel">Time to focus</div>
+        </div>
+      </div>
+
+      <div class="progress-wrap" aria-hidden="true">
+        <div class="progress" id="linearProgress"></div>
+      </div>
+
+      <div class="actions">
+        <button id="startPause" class="btn primary">Start</button>
+        <button id="reset" class="btn">Reset</button>
+        <button id="skip" class="btn ghost">Skip</button>
+      </div>
+
+      <div class="hints">
+        <span>Space to start or pause</span>
+        <span>R to reset</span>
+        <span>Arrows to adjust minutes</span>
+      </div>
+    </section>
+
+    <section class="stats">
+      <div class="stat">
+        <div class="stat-number" id="todayCount">0</div>
+        <div class="stat-label">Sessions today</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number" id="streakDays">0</div>
+        <div class="stat-label">Day streak</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number" id="totalMinutes">0</div>
+        <div class="stat-label">Total minutes</div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <span>Glow aesthetic with animated gradient background and soft glows</span>
+      <a href="#" id="notifyAsk">Enable notifications</a>
+    </footer>
+  </main>
+
+  <dialog id="settings">
+    <form method="dialog" class="panel">
+      <header class="panel-head">
+        <h2>Settings</h2>
+        <button class="btn ghost" value="cancel" aria-label="Close">✕</button>
+      </header>
+
+      <div class="grid">
+        <label>Focus minutes
+          <input type="number" id="setFocus" min="1" max="180" step="1">
+        </label>
+        <label>Short break minutes
+          <input type="number" id="setShort" min="1" max="60" step="1">
+        </label>
+        <label>Long break minutes
+          <input type="number" id="setLong" min="1" max="120" step="1">
+        </label>
+        <label title="Auto start next session when one finishes">
+          <input type="checkbox" id="autoNext"> Auto start next
+        </label>
+        <label title="Play a soft chime when a session ends">
+          <input type="checkbox" id="chimeToggle" checked> Sound chime
+        </label>
+      </div>
+
+      <footer class="panel-foot">
+        <button class="btn" id="resetPrefs" type="button">Reset to defaults</button>
+        <button class="btn primary" value="ok">Save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
