@@ -1,16 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0f1e">
   <title>Focus Timer by SWC</title>
+
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+  <style>html,body{background-color:#0a0f1e}</style>
   <link rel="stylesheet" href="styles.css">
 </head>
-
 <body>
   <div class="bg-orb orb-1"></div>
   <div class="bg-orb orb-2"></div>
@@ -30,7 +34,7 @@
       <button class="chip" data-mode="long">Long break</button>
     </section>
 
-    <section class="timer-card">
+    <section class="timer-card" aria-labelledby="modeLabel">
       <div class="ring" aria-hidden="true">
         <div class="ring-inner">
           <div class="time" aria-live="polite">
@@ -54,6 +58,7 @@
         <span>Space to start or pause</span>
         <span>R to reset</span>
         <span>Arrows to adjust minutes</span>
+        <span>T to toggle title updates</span>
       </div>
     </section>
 
@@ -72,9 +77,24 @@
       </div>
     </section>
 
+    <section class="pro">
+      <div class="panel-row">
+        <button id="notifyAsk" class="btn ghost">Enable notifications</button>
+        <button id="exportCsv" class="btn ghost">Export stats CSV</button>
+      </div>
+      <div class="panel-row small">
+        <label class="inline">
+          <input type="checkbox" id="titleTick" checked> Show time in tab title
+        </label>
+        <label class="inline" title="Pause automatically when the tab is hidden">
+          <input type="checkbox" id="autoPauseHidden" checked> Auto pause when hidden
+        </label>
+      </div>
+    </section>
+
     <footer class="foot">
-      <span>Glow aesthetic with animated gradient background and soft glows</span>
-      <a href="#" id="notifyAsk">Enable notifications</a>
+      <span>Glow aesthetic with animated background. No frameworks. Accessible. Offline ready.</span>
+      <a href="https://github.com/" target="_blank" rel="noopener">GitHub</a>
     </footer>
   </main>
 
@@ -95,15 +115,22 @@
         <label>Long break minutes
           <input type="number" id="setLong" min="1" max="120" step="1">
         </label>
+        <label>Long break after N focus
+          <input type="number" id="setLongEvery" min="2" max="12" step="1">
+        </label>
         <label title="Auto start next session when one finishes">
           <input type="checkbox" id="autoNext"> Auto start next
         </label>
         <label title="Play a soft chime when a session ends">
           <input type="checkbox" id="chimeToggle" checked> Sound chime
         </label>
+        <label>Volume
+          <input type="range" id="volume" min="0" max="1" step="0.01">
+        </label>
       </div>
 
       <footer class="panel-foot">
+        <button class="btn" id="resetStats" type="button">Reset stats</button>
         <button class="btn" id="resetPrefs" type="button">Reset to defaults</button>
         <button class="btn primary" value="ok">Save</button>
       </footer>
@@ -111,6 +138,12 @@
   </dialog>
 
   <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(()=>{});
+      });
+    }
+  </script>
 </body>
-
 </html>
