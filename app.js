@@ -1,6 +1,6 @@
 /* GlowTimer by SWC behaviour */
-const $ = sel => document.querySelector(sel);
-const $$ = sel => Array.from(document.querySelectorAll(sel));
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
 const SETTINGS_KEY = "glowtimer_prefs_v1";
 const STATS_KEY = "glowtimer_stats_v1";
@@ -22,6 +22,15 @@ const state = {
   cycle: 0,
 };
 
+let audioCtx = null;
+function ensureAudioCtx() {
+  if (!audioCtx) {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch {}
+  }
+}
+
 function loadPrefs() {
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
@@ -36,7 +45,9 @@ function savePrefs(p) {
 function loadStats() {
   try {
     const saved = JSON.parse(localStorage.getItem(STATS_KEY));
-    return saved || { today: dateKey(), todayCount: 0, streak: 0, totalMinutes: 0 };
+    return (
+      saved || { today: dateKey(), todayCount: 0, streak: 0, totalMinutes: 0 }
+    );
   } catch {
     return { today: dateKey(), todayCount: 0, streak: 0, totalMinutes: 0 };
   }
@@ -45,7 +56,7 @@ function saveStats(s) {
   localStorage.setItem(STATS_KEY, JSON.stringify(s));
 }
 function dateKey(d = new Date()) {
-  return d.toISOString().slice(0,10);
+  return d.toISOString().slice(0, 10);
 }
 
 let prefs = loadPrefs();
@@ -92,19 +103,35 @@ function init() {
 init();
 
 function setMode(next, resetTimer = true) {
+  const allowed = ["focus", "short", "long"];
+  if (!allowed.includes(next)) return; // guard bad clicks
+
   state.mode = next;
-  chips.forEach(c => c.classList.toggle("active", c.dataset.mode === next));
-  const minutes = prefs[next];
+  chips.forEach((c) => c.classList.toggle("active", c.dataset.mode === next));
+
+  const minutes = Number(prefs[next]);
+  const safeMinutes =
+    Number.isFinite(minutes) && minutes > 0 ? minutes : defaultPrefs[next];
+
   if (resetTimer) {
-    state.total = minutes * 60;
+    state.total = safeMinutes * 60;
     state.left = state.total;
     state.running = false;
     clearInterval(state.intervalId);
     startPauseBtn.textContent = "Start";
   } else {
-    state.total = minutes * 60;
+    state.total = safeMinutes * 60;
+    // keep state.left as is so partial progress can carry if you changed lengths mid run
+    // but clamp it to the new total to avoid ratio > 1
+    state.left = Math.min(state.left, state.total);
   }
-  modeLabel.textContent = next === "focus" ? "Time to focus" : next === "short" ? "Short break" : "Long break";
+
+  modeLabel.textContent =
+    next === "focus"
+      ? "Time to focus"
+      : next === "short"
+      ? "Short break"
+      : "Long break";
   updateDisplay();
 }
 
@@ -114,14 +141,30 @@ function formatTime(sec) {
   return [m, s];
 }
 function updateDisplay() {
-  const [m, s] = formatTime(state.left);
+  const left = Math.max(0, state.left);
+  const [m, s] = formatTime(left);
   minutesEl.textContent = m;
   secondsEl.textContent = s;
 
-  const progressAngle = 360 * (1 - state.left / state.total || 0);
-  ring.style.setProperty("--progress", progressAngle + "deg");
-  linearProgress.style.width = (100 * (1 - state.left / state.total || 0)).toFixed(2) + "%";
+  const safeTotal =
+    Number.isFinite(state.total) && state.total > 0 ? state.total : 1;
+  const rawRatio = 1 - left / safeTotal;
+  const ratio = Math.max(
+    0,
+    Math.min(1, Number.isFinite(rawRatio) ? rawRatio : 0)
+  );
+
+  const angle = 360 * ratio;
+  if (Number.isFinite(angle)) {
+    ring.style.setProperty("--progress", angle + "deg");
+  }
+
+  const width = 100 * ratio;
+  if (Number.isFinite(width)) {
+    linearProgress.style.width = width.toFixed(2) + "%";
+  }
 }
+
 function tick() {
   if (!state.running) return;
   state.left -= 1;
@@ -130,13 +173,19 @@ function tick() {
   }
   updateDisplay();
 }
+
 function start() {
   if (state.running) return;
   state.running = true;
   startPauseBtn.textContent = "Pause";
   clearInterval(state.intervalId);
+  ensureAudioCtx();
+  try {
+    audioCtx?.resume?.();
+  } catch {}
   state.intervalId = setInterval(tick, 1000);
 }
+
 function pause() {
   state.running = false;
   startPauseBtn.textContent = "Start";
@@ -165,7 +214,10 @@ function finishSession() {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const yKey = dateKey(yesterday);
-      stats.streak = stats.today === yKey && stats.todayCount > 0 ? stats.streak + 1 : stats.streak;
+      stats.streak =
+        stats.today === yKey && stats.todayCount > 0
+          ? stats.streak + 1
+          : stats.streak;
       stats.today = today;
       stats.todayCount = 0;
     }
@@ -196,7 +248,10 @@ function refreshStats() {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yKey = dateKey(yesterday);
-    stats.streak = stats.today === yKey && stats.todayCount > 0 ? stats.streak + 1 : stats.streak;
+    stats.streak =
+      stats.today === yKey && stats.todayCount > 0
+        ? stats.streak + 1
+        : stats.streak;
     stats.today = today;
     stats.todayCount = 0;
     localStorage.setItem(STATS_KEY, JSON.stringify(stats));
@@ -206,21 +261,27 @@ function refreshStats() {
   totalMinutesEl.textContent = stats.totalMinutes;
 }
 
+// CHANGED: reuse the AudioContext instead of creating one every time
 function chime() {
   if (!prefs.sound) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
+    ensureAudioCtx();
+    if (!audioCtx) return;
+
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
     o.type = "sine";
     o.frequency.value = 880;
     o.connect(g);
-    g.connect(ctx.destination);
-    g.gain.setValueAtTime(0.0001, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.6);
-    o.start();
-    o.stop(ctx.currentTime + 0.65);
+    g.connect(audioCtx.destination);
+
+    const t0 = audioCtx.currentTime;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.2, t0 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.6);
+
+    o.start(t0);
+    o.stop(t0 + 0.65);
   } catch {}
 }
 
@@ -230,19 +291,26 @@ function notify(title, body) {
     new Notification(title, { body });
   }
 }
-notifyAsk?.addEventListener("click", e => {
+notifyAsk?.addEventListener("click", (e) => {
   e.preventDefault();
   if (!("Notification" in window)) return;
-  Notification.requestPermission().then(perm => {
-    if (perm === "granted") notify("Notifications enabled", "I will remind you when time is up");
+  Notification.requestPermission().then((perm) => {
+    if (perm === "granted")
+      notify("Notifications enabled", "I will remind you when time is up");
   });
 });
 
-startPauseBtn.addEventListener("click", () => state.running ? pause() : start());
+startPauseBtn.addEventListener("click", () =>
+  state.running ? pause() : start()
+);
 resetBtn.addEventListener("click", reset);
 skipBtn.addEventListener("click", skip);
 
-chips.forEach(ch => ch.addEventListener("click", () => setMode(ch.dataset.mode)));
+chips
+  .filter((ch) => typeof ch.dataset.mode === "string")
+  .forEach((ch) =>
+    ch.addEventListener("click", () => setMode(ch.dataset.mode))
+  );
 
 openSettingsBtn.addEventListener("click", () => settingsDlg.showModal());
 settingsDlg.addEventListener("close", () => {
@@ -263,7 +331,9 @@ settingsDlg.addEventListener("close", () => {
   }
 });
 resetPrefsBtn.addEventListener("click", () => {
-  prefs = { ...{focus:25, short:5, long:15, autoNext:false, sound:true} };
+  prefs = {
+    ...{ focus: 25, short: 5, long: 15, autoNext: false, sound: true },
+  };
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(prefs));
   setMode("focus");
   focusIn.value = prefs.focus;
@@ -273,7 +343,7 @@ resetPrefsBtn.addEventListener("click", () => {
   chimeToggle.checked = prefs.sound;
 });
 
-window.addEventListener("keydown", e => {
+window.addEventListener("keydown", (e) => {
   if (e.target.matches("input, textarea")) return;
   if (e.code === "Space") {
     e.preventDefault();
@@ -294,9 +364,15 @@ function adjustMinutes(delta) {
   updateDisplay();
 }
 
-function intVal(v) { return parseInt(v, 10) || 0; }
-function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+function intVal(v) {
+  return parseInt(v, 10) || 0;
+}
+function clamp(v, lo, hi) {
+  return Math.min(hi, Math.max(lo, v));
+}
 
 document.addEventListener("visibilitychange", () => {
-  if (!state.running) return;
+  if (document.hidden && state.running) {
+    pause();
+  }
 });
